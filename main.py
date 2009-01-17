@@ -6,6 +6,8 @@ import facebook
 
 import time
 import threading
+import tempfile
+import urllib2
 import os.path
 
 #notifications.get
@@ -52,17 +54,27 @@ class FacebookCommunicationManager(threading.Thread):
         threading.Thread.__init__(self)
         #func : (cb, *args, **kwargs)
         self._pending = []
+        self._pending_photos = []
+        self._photo_cache = {}
         self._stopped = False
         self._event = threading.Event()
         self._fb = facebook.Facebook(self.FB_API_KEY, self.FB_SECRET)
+        self._tmpdir = tempfile.mkdtemp(prefix="facebook",suffix="cache")
 
     def stop(self):
         self._stopped = True
-        self._event.set()
+        #self._event.set()
 
     def call_facebook_function(self, cb, func, *args, **kwargs):
         self._pending.insert(0, (cb, func, args, kwargs))
-        self._event.set()
+        #self._event.set()
+
+    def download_photo(self, cb, url, *args, **kwargs):
+        if url in self._photo_cache:
+            cb(self._photo_cache[url], *args, **kwargs)
+        else:
+            self._pending_photos.insert(0, (cb, url, args, kwargs))
+            #self._event.set()
 
     def get_login_url(self):
         return self._fb.get_login_url()
@@ -70,6 +82,7 @@ class FacebookCommunicationManager(threading.Thread):
     def run(self):
         while not self._stopped:
             while True:
+                #do any pending facebook calls
                 try:
                     cb, funcname, args, kwargs = self._pending.pop()
                     print "Calling %s... " % funcname,
@@ -85,9 +98,35 @@ class FacebookCommunicationManager(threading.Thread):
                     cb(res)
                 except IndexError:
                     break
+
+                #do any pending image downloads
+                try:
+                    cb, url, args, kwargs = self._pending_photos.pop()
+                    try:
+                        print "Downloading %s... " % url
+                        inf = urllib2.urlopen(url)
+                        fd, pic = tempfile.mkstemp(dir=self._tmpdir,suffix=".jpg")
+
+                        os.write(fd, inf.read())
+                        os.close(fd)
+                        inf.close()
+
+                        print "finished"
+                        self._photo_cache[url] = pic
+                    except urllib2.URLError, e:
+                        print "error: %s" % e
+                        pic = ""
+
+                    cb(pic, *args, **kwargs)
+                except IndexError:
+                    break
+
+                #minimum of 1 second between subsequent facebook calls
                 time.sleep(1)
-            self._event.wait()
-            self._event.clear()
+
+            time.sleep(0.1)
+            #self._event.wait()
+            #self._event.clear()
 
 class Gui:
 
@@ -113,6 +152,7 @@ class Gui:
 
         self._uid = None
         self._friends = []
+        self._friend_index = {}
         self._first_friends_query = True
         self._notifications = {}
         self._albums = []
@@ -159,17 +199,37 @@ class Gui:
         self._create_left_menu()
         self._create_right_menu()
 
-    def __send_notification(self, title, message, timeout):
+    def __update_friend_index(self, new):
+        self._friend_index = {}
+        self._friends = new
+        for f in self._friends:
+            self._friend_index[f['uid']] = f
+
+    def __send_notification(self, title, message, pic, timeout):
         #attach the libnotification bubble to the tray
-        n = pynotify.Notification(title, message)
+        n = pynotify.Notification(title, message, pic)
         n.attach_to_status_icon(self.tray)
         n.set_timeout(timeout)
         print "Showing notification...\n   -> %s" % message
         n.show()
         return False
 
-    def _send_notification(self, title, message, timeout=pynotify.EXPIRES_DEFAULT):
-        gobject.idle_add(self.__send_notification, title, message, timeout)
+    def _got(self, path, title, message, timeout):
+        if path:
+            pic = "file://%s" % path
+        else:
+            pic = None
+        gobject.idle_add(self.__send_notification, title, message, pic, timeout)
+
+    def _send_notification(self, title, message, pic, timeout):
+        if pic:
+            self._fbcm.download_photo(
+                        self._got,
+                        pic,
+                        title,message,timeout,
+            )
+        else:
+            gobject.idle_add(self.__send_notification, title, message, pic, timeout)
 
     def _on_popup_menu(self, status, button, time):
         self._rmenu.popup(None, None, gtk.status_icon_position_menu, button, time, self.tray)
@@ -210,9 +270,19 @@ class Gui:
             self._send_notification(
                     title="Facebook",
                     message="You have logged in successfully",
+                    pic=None,
                     timeout=2000
             )
             self._loginbtn.set_sensitive(False)
+
+            #get my details, se we have a photo
+            self._fbcm.call_facebook_function(
+                self._got_me,
+                "fql.query",
+                "SELECT uid, name, status, pic_small, pic_square, wall_count, notes_count, profile_update_time FROM user WHERE uid = %s" % (
+                    self._uid,
+                )
+            )
 
             #check notifications now
             self._fbcm.call_facebook_function(
@@ -225,7 +295,6 @@ class Gui:
                         self.SECONDS_UPDATE_FREQ,
                         self._do_update
             )
-
 
     def _do_update(self):
         if self._state == self.STATE_FRIENDS:
@@ -256,6 +325,17 @@ class Gui:
         #keep running
         return True
 
+    def _got_me(self, result):
+        #data returned by facebook
+        #{u'status': {u'message': u'is fuck Israel.', u'status_id': u'42439154725', 
+        #u'time': u'1231563128'}, u'wall_count': u'144', u'uid': u'507455752', 
+        #u'pic_square': u'http://profile.ak.facebook.com/v223/111/10/q507455752_2044.jpg', 
+        #u'pic_small': u'http://profile.ak.facebook.com/v223/111/10/t507455752_2044.jpg', 
+        #u'profile_update_time': u'1232016849', u'notes_count': u'17', u'name': u'John Stowers'}
+        if result:
+            print "   -> got my details"
+            self._friend_index[self._uid] = result[0]
+
     def _got_friends(self, result):
         #data returned by facebook
         #{u'status': {u'message': u'is fuck Israel.', u'status_id': u'42439154725', 
@@ -283,6 +363,7 @@ class Gui:
                     if len(changed) == 1:
                         idx = changed[0]
                         name = result[idx]["name"]
+                        pic = result[idx]["pic_square"]
 
                         if result[idx]["status"]["message"] != self._friends[idx]["status"]["message"]:
                             msg = "%s updated their status\n\n<i>%s</i>" % (name, result[idx]["status"]["message"])
@@ -301,17 +382,22 @@ class Gui:
                     elif len(changed) < 5:
                         names = [result[i]["name"] for i in changed]
                         msg = "%s and %s updated their profiles" % (", ".join(names[0:-1]), names[-1])
+                        pic = None
                     else:
                         msg = "%s friends updated their profiles" % len(changed)
+                        pic = None
                 else:
                     msg = "You gained or lost a friend"
+                    pic = None
 
                 self._send_notification(
                         title="Friends",
-                        message=msg
+                        message=msg,
+                        pic=pic,
+                        timeout=pynotify.EXPIRES_DEFAULT
                 )
 
-            self._friends = result
+            self.__update_friend_index(result)
 
 
     def _got_fql_albums(self, result):
@@ -337,7 +423,9 @@ class Gui:
 
                 self._send_notification(
                         title="Albums",
-                        message=msg
+                        message=msg,
+                        pic=None,
+                        timeout=pynotify.EXPIRES_DEFAULT
                 )
 
             self._albums = result
@@ -382,7 +470,9 @@ class Gui:
             if msgs:
                 self._send_notification(
                         title="Notifications",
-                        message="You have\n" + "\n".join(msgs)
+                        message="You have\n" + "\n".join(msgs),
+                        pic=self._friend_index[self._uid]["pic_square"],
+                        timeout=pynotify.EXPIRES_DEFAULT
                 )
             
             self._notifications = result
