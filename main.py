@@ -95,6 +95,9 @@ class FacebookCommunicationManager(threading.Thread):
                     except facebook.FacebookError:
                         print "error"
                         res = {}
+                    except urllib2.URLError:
+                        print "error"
+                        res = {}
                     cb(res)
                 except IndexError:
                     break
