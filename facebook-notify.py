@@ -161,7 +161,7 @@ class Gui:
         self._first_friends_query = True
         self._notifications = {}
         self._notifications_first_query = True
-        self._albums = []
+        self._album_index = {}
         self._first_album_query = True
         self._state = 0
 
@@ -210,6 +210,27 @@ class Gui:
         self._friends = new
         for f in self._friends:
             self._friend_index[f['uid']] = f
+
+    def __update_album_index(self, new, first):
+        if first:
+            self._album_index = {}
+            for n in new:
+                self._album_index[n['aid']] = n
+            return [], []
+        else:
+            album_index = {}
+            new_albums = []
+            mod_albums = []
+            for n in new:
+                if n['aid'] in self._album_index:
+                    if n != self._album_index[n['aid']]:
+                        mod_albums.append(n)
+                else:
+                    new_albums.append(n)
+                album_index[n['aid']] = n
+            self._album_index = album_index
+            return new_albums, mod_albums
+            
 
     def __send_notification(self, title, message, pic, timeout):
         #attach the libnotification bubble to the tray
@@ -365,7 +386,9 @@ class Gui:
                         name = result[idx]["name"]
                         pic = result[idx]["pic_square"]
 
-                        if result[idx]["status"]["message"] != self._friends[idx]["status"]["message"]:
+                        if  result[idx]["status"] and \
+                            self._friends[idx]["status"] and \
+                            result[idx]["status"]["message"] != self._friends[idx]["status"]["message"]:
                             msg = "%s updated their status\n\n<i>%s</i>" % (name, result[idx]["status"]["message"])
                         elif result[idx]["pic_square"] != self._friends[idx]["pic_square"]:
                             msg = "%s changed their profile picture" % name
@@ -403,32 +426,36 @@ class Gui:
     def _got_fql_albums(self, result):
         #data returned by facebook
         #[{u'owner': u'1546153065', u'aid': u'6640676848787171224', u'modified': u'1232092931', u'size': u'1'},...]
-        if result and result != self._albums:
+        if result:
             if self._first_album_query:
                 print "   -> first run"
-                self._first_album_query = False
-            else:
+
+            new_albums, mod_albums = self.__update_album_index(result, self._first_album_query)
+            self._first_album_query = False
+
+            friends = []
+            if new_albums or mod_albums:
                 print "   -> album changes detected"
+                for n in new_albums+mod_albums:
+                    f = self._friend_index.get(n['owner'])
+                    if f:
+                        friends.append(f)
 
-                names = []
-                for a in result:
-                    for f in self._friends:
-                        if a["owner"] == f["uid"]:
-                            names.append(f["name"])
-
-                if len(names) == 1:
-                    msg = "%s uploaded new photos" % names[0]
+                if len(friends) == 1:
+                    msg = "%s uploaded new photos" % friends[0]['name']
+                    pic = friends[0]['pic_square']
                 else:
+                    names = [f['name'] for f in friends]
                     msg = "%s and %s uploaded new photos" % (", ".join(names[0:-1]), names[-1])
+                    pic = None
 
                 self._send_notification(
                         title="Albums",
                         message=msg,
-                        pic=None,
+                        pic=pic,
                         timeout=pynotify.EXPIRES_DEFAULT
                 )
 
-            self._albums = result
 
     def _got_notifications(self, result):
         #data returned by facebook
