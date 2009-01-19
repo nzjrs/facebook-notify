@@ -1,3 +1,5 @@
+#!/bin/env python
+
 import gobject
 import gtk
 import pynotify
@@ -158,6 +160,7 @@ class Gui:
         self._friend_index = {}
         self._first_friends_query = True
         self._notifications = {}
+        self._notifications_first_query = True
         self._albums = []
         self._first_album_query = True
         self._state = 0
@@ -270,12 +273,6 @@ class Gui:
         if result and result.get("session_key") and result.get('uid'):
             self._uid = result.get('uid')
 
-            self._send_notification(
-                    title="Facebook",
-                    message="You have logged in successfully",
-                    pic=None,
-                    timeout=2000
-            )
             self._loginbtn.set_sensitive(False)
 
             #get my details, se we have a photo
@@ -477,7 +474,15 @@ class Gui:
                         pic=self._friend_index[self._uid]["pic_square"],
                         timeout=pynotify.EXPIRES_DEFAULT
                 )
-            
+            elif self._notifications_first_query:
+                self._send_notification(
+                        title="Facebook",
+                        message="You have logged in successfully",
+                        pic=self._friend_index[self._uid]["pic_square"],
+                        timeout=2000
+                )
+
+            self._notifications_first_query = False
             self._notifications = result
 
     def _on_about_clicked(self, widget):
