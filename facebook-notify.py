@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+#Facebook Notify - Facebook status notifier for GNOME
+#Copyright (C) 2009 John Stowers <john.stowers@gmail.com>
+#
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import gobject
 import gtk
@@ -11,15 +26,6 @@ import threading
 import tempfile
 import urllib2
 import os.path
-
-#notifications.get
-#SELECT aid, owner, modified, size FROM album  WHERE owner IN (SELECT uid2 FROM friend WHERE uid1 = 507455752) and size > 0
-#SELECT uid, name, status, pic_small, pic_square, wall_count, notes_count, profile_update_time FROM user WHERE uid = 507455752  OR uid IN (SELECT uid2 FROM friend WHERE uid1 = 507455752 )
-#SELECT aid, owner, name, modified, size, link FROM album  WHERE owner IN (SELECT uid2 FROM friend WHERE uid1 = 507455752 ) AND modified > (now() - 392) AND size > 0
-#SELECT uid, name, status, pic_small, pic_square, wall_count, notes_count, profile_update_time FROM user WHERE uid = 507455752  OR uid IN (SELECT uid2 FROM friend WHERE uid1 = 507455752 )
-#SELECT aid, owner, name, modified, size, link FROM album  WHERE owner IN (SELECT uid2 FROM friend WHERE uid1 = 507455752 ) AND modified > (now() - 330) AND size > 0
-#SELECT aid, owner, modified, size FROM album  WHERE owner IN (SELECT uid2 FROM friend WHERE uid1 = 507455752) and size > 0
-#SELECT uid, name, status, pic_small, pic_square, wall_count, notes_count, profile_update_time FROM user WHERE uid = 507455752  OR uid IN (SELECT uid2 FROM friend WHERE uid1 = 507455752 )
 
 class SimpleBrowser(gtk.Window):
     def __init__(self):
