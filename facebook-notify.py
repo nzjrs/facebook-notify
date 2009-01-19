@@ -169,7 +169,7 @@ class Gui:
 
     def _create_left_menu(self):
         self._lmenu = gtk.Menu()
-        self._loginbtn = gtk.ImageMenuItem(stock_id=gtk.STOCK_YES, accel_group=None)
+        self._loginbtn = gtk.ImageMenuItem(stock_id=gtk.STOCK_CONNECT)
         self._loginbtn.connect("activate", self._login_open_window)
         self._loginbtn.set_sensitive(False)
         
@@ -178,9 +178,9 @@ class Gui:
 
     def _create_right_menu(self):
         self._rmenu = gtk.Menu()
-        about = gtk.ImageMenuItem(stock_id=gtk.STOCK_ABOUT, accel_group=None)
+        about = gtk.ImageMenuItem(stock_id=gtk.STOCK_ABOUT)
         about.connect("activate", self._on_about_clicked)
-        quit = gtk.ImageMenuItem(stock_id=gtk.STOCK_QUIT, accel_group=None)
+        quit = gtk.ImageMenuItem(stock_id=gtk.STOCK_QUIT)
         quit.connect("activate", self._on_exit_clicked)
         self._rmenu.add(about)
         self._rmenu.add(quit)
@@ -513,7 +513,11 @@ class Gui:
             self._notifications = result
 
     def _on_about_clicked(self, widget):
-        pass
+        dlg = gtk.AboutDialog()
+        dlg.set_name("Facebook Notifier")
+        dlg.set_logo(self.icon)
+        dlg.run()
+        dlg.destroy()
 
     def _on_exit_clicked(self, widget):
         self._fbcm.stop()
