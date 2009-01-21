@@ -152,6 +152,7 @@ class Gui:
     STATE_NOTIFICATIONS = 2
     STATE_MAX = 3
 
+    ICON_NAME = "facebook"
 
     def __init__(self):
         pynotify.init("name")
@@ -194,15 +195,17 @@ class Gui:
 
     def _create_gui(self):
         #load themed or fallback app icon
-        try:
-            icon = os.path.join(os.path.dirname(__file__),'facebook.png')
-            self.icon = gtk.gdk.pixbuf_new_from_file(icon)
-        except gobject.GError:
-            self.icon = gtk.icon_theme_get_default().load_icon(gtk.STOCK_NETWORK, 24, 0)
+        theme = gtk.icon_theme_get_default()
+        if not theme.has_icon(self.ICON_NAME):
+            theme.prepend_search_path(os.path.join(os.path.dirname(os.path.abspath(__file__)),'icons'))
+        if theme.has_icon(self.ICON_NAME):
+            self._icon_name = self.ICON_NAME
+        else:
+            self._icon_name = gtk.STOCK_NETWORK
 
         #build tray icon
         self.tray = gtk.StatusIcon()
-        self.tray.set_from_pixbuf(self.icon)
+        self.tray.set_from_icon_name(self._icon_name)
         self.tray.connect('popup-menu', self._on_popup_menu)
         self.tray.connect('activate', self._on_activate)
         self.tray.set_visible(True)
@@ -532,7 +535,7 @@ class Gui:
     def _on_about_clicked(self, widget):
         dlg = gtk.AboutDialog()
         dlg.set_name("Facebook Notifier")
-        dlg.set_logo(self.icon)
+        dlg.set_logo_icon_name(self._icon_name)
         dlg.run()
         dlg.destroy()
 
