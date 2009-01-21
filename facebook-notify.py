@@ -264,6 +264,9 @@ class Gui:
         else:
             gobject.idle_add(self.__send_notification, title, message, pic, timeout)
 
+    def _set_tooltip(self, msg):
+        gobject.idle_add(self.tray.set_tooltip, msg)
+
     def _on_popup_menu(self, status, button, time):
         self._rmenu.popup(None, None, gtk.status_icon_position_menu, button, time, self.tray)
 
@@ -271,6 +274,7 @@ class Gui:
         self._lmenu.popup(None, None, gtk.status_icon_position_menu, 1, gtk.get_current_event_time(), self.tray)
 
     def _login_start(self):
+        self._set_tooltip("Connecting to Facebook...")
         self._fbcm.call_facebook_function(
                 self._login_got_auth_token,
                 "auth.createToken"
@@ -280,7 +284,10 @@ class Gui:
 
     def _login_got_auth_token(self, result):
         if result:
+            self._set_tooltip("Ready to Login")
             self._loginbtn.set_sensitive(True)
+        else:
+            self._set_tooltip("Error Connecting to Facebook")
 
     def _login_open_window(self, *args):
         self._sb.open_url(
@@ -289,6 +296,7 @@ class Gui:
         )
 
     def _login_window_closed(self, *args):
+        self._set_tooltip("Logging into Facebook...")
         self._fbcm.call_facebook_function(
                     self._login_got_session,
                     "auth.getSession")
@@ -300,6 +308,7 @@ class Gui:
         if result and result.get("session_key") and result.get('uid'):
             self._uid = result.get('uid')
 
+            self._set_tooltip("Logged into Facebook")
             self._loginbtn.set_sensitive(False)
 
             #get my details, se we have a photo
@@ -322,6 +331,8 @@ class Gui:
                         self.SECONDS_UPDATE_FREQ,
                         self._do_update
             )
+        else:
+            self._set_tooltip("Error Logging into Facebook")
 
     def _do_update(self):
         if self._state == self.STATE_FRIENDS:
