@@ -69,6 +69,8 @@ class FacebookCommunicationManager(threading.Thread):
         self._fb = facebook.Facebook(self.FB_API_KEY, self.FB_SECRET)
         self._tmpdir = tempfile.mkdtemp(prefix="facebook",suffix="cache")
 
+        print "facebook parsing using: %s (%s)" % (facebook.RESPONSE_FORMAT, getattr(facebook, "JSON_MODULE", "N/A"))
+
     def stop(self):
         self._stopped = True
         #self._event.set()
