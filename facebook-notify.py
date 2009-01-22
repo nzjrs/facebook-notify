@@ -153,6 +153,8 @@ class Gui:
     STATE_MAX = 3
 
     ICON_NAME = "facebook"
+    APP_NAME = "Facebook Notifier"
+    APP_DESCRIPTION = "Facebook Notification Monitor for GNOME"
 
     def __init__(self):
         pynotify.init("name")
@@ -534,7 +536,9 @@ class Gui:
 
     def _on_about_clicked(self, widget):
         dlg = gtk.AboutDialog()
-        dlg.set_name("Facebook Notifier")
+        dlg.set_name(self.APP_NAME)
+        dlg.set_comments(self.APP_DESCRIPTION)
+        dlg.set_authors(("John Stowers",))
         dlg.set_logo_icon_name(self._icon_name)
         dlg.run()
         dlg.destroy()
