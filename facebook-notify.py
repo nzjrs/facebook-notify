@@ -32,6 +32,10 @@ class SimpleBrowser(gtk.Window):
         gtk.Window.__init__(self)
         self._sw = gtk.ScrolledWindow()
         self._bv = webkit.WebView()
+
+        #disable flash to stop segfault on destroy
+        self._bv.get_settings().props.enable_plugins = False
+
         self._sw.add(self._bv)
         self.add(self._sw)
 
