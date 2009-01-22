@@ -61,18 +61,22 @@ RESPONSE_FORMAT = 'JSON'
 try:
     import json as simplejson
     simplejson.loads
+    JSON_MODULE = "json"
 except (ImportError, AttributeError):
     try:
         import simplejson
         simplejson.loads
+        JSON_MODULE = "simplejson"
     except (ImportError, AttributeError):
         try:
             from django.utils import simplejson
             simplejson.loads
+            JSON_MODULE = "django.utils.simplejson"
         except (ImportError, AttributeError):
             try:
                 import jsonlib as simplejson
                 simplejson.loads
+                JSON_MODULE = "jsonlib"
             except (ImportError, AttributeError):
                 from xml.dom import minidom
                 RESPONSE_FORMAT = 'XML'
