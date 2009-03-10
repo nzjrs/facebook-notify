@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Terminal=false
+Name=Facebook Notifier
+Comment=Facebook Notification Monitor for GNOME
+Icon=facebook
+Exec=facebook-notify.py
+Categories=GNOME;GTK;Network;Application;Network;
+
