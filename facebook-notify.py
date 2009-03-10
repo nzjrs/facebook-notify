@@ -163,7 +163,7 @@ class Gui:
     APP_DESCRIPTION = "Facebook Notification Monitor for GNOME"
 
     def __init__(self):
-        pynotify.init("name")
+        pynotify.init(self.APP_NAME)
         self._create_gui()
         self._fbcm = FacebookCommunicationManager()
         self._fbcm.start()
@@ -176,6 +176,7 @@ class Gui:
         self._first_friends_query = True
         self._notifications = {}
         self._notifications_first_query = True
+        self._notifications_show_actions = 'actions' in pynotify.get_server_caps()
         self._album_index = {}
         self._first_album_query = True
         self._state = 0
