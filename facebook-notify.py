@@ -184,7 +184,8 @@ class Gui:
 
     def _create_left_menu(self):
         self._lmenu = gtk.Menu()
-        self._loginbtn = gtk.ImageMenuItem(stock_id=gtk.STOCK_CONNECT)
+        self._loginbtn = gtk.ImageMenuItem(stock_id=gtk.STOCK_DIALOG_AUTHENTICATION)
+        self._loginbtn.get_children()[0].set_text("Login to Facebook")
         self._loginbtn.connect("activate", self._login_open_window)
         self._loginbtn.set_sensitive(False)
         
