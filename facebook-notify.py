@@ -30,6 +30,7 @@ import os.path
 class SimpleBrowser(gtk.Window):
     def __init__(self):
         gtk.Window.__init__(self)
+        self.isLoginRequest = False
         self._sw = gtk.ScrolledWindow()
         self._bv = webkit.WebView()
 
@@ -46,9 +47,10 @@ class SimpleBrowser(gtk.Window):
         #window.move(gtk.gdk.screen_width() - width, gtk.gdk.screen_height() - height)
 
 
-    def open_url(self, url, statusicon=None):
-        if statusicon and statusicon.is_embedded():
-            self._move_window_to_status_icon(statusicon)
+    def open_url(self, url, statusIcon=None, isLoginRequest=False):
+        self.isLoginRequest = isLoginRequest
+        if statusIcon and statusIcon.is_embedded():
+            self._move_window_to_status_icon(statusIcon)
         else:
             self.set_position(gtk.WIN_POS_CENTER)
         self.set_size_request(800,600)
@@ -189,8 +191,16 @@ class Gui:
         self._loginbtn.get_children()[0].set_text("Login to Facebook")
         self._loginbtn.connect("activate", self._login_open_window)
         self._loginbtn.set_sensitive(False)
+
+        self._homebtn = gtk.ImageMenuItem(stock_id=gtk.STOCK_HOME)
+        self._homebtn.get_children()[0].set_text("Open Facebook Homepage")
+        self._homebtn.connect(
+                "activate", 
+                lambda x: self._sb.open_url("http://www.google.com")
+        )
         
         self._lmenu.add(self._loginbtn)
+        self._lmenu.add(self._homebtn)
         self._lmenu.show_all()
 
     def _create_right_menu(self):
@@ -305,15 +315,18 @@ class Gui:
     def _login_open_window(self, *args):
         self._sb.open_url(
                     self._fbcm.get_login_url(), 
-                    None
+                    statusIcon=None,
+                    isLoginRequest=True
         )
 
     def _login_window_closed(self, *args):
-        self._set_tooltip("Logging into Facebook...")
-        self._fbcm.call_facebook_function(
-                    self._login_got_session,
-                    "auth.getSession")
-        #FIXME: Stop the login window being destoyed to prevent segfault
+        if self._sb.isLoginRequest:
+            self._set_tooltip("Logging into Facebook...")
+            self._fbcm.call_facebook_function(
+                        self._login_got_session,
+                        "auth.getSession")
+        #Stop the login window being destoyed so we can re-use it later,
+        #now the user has already logged in
         self._sb.hide()
         return True
 
