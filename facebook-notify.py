@@ -196,8 +196,9 @@ class Gui:
         self._homebtn.get_children()[0].set_text("Open Facebook Homepage")
         self._homebtn.connect(
                 "activate", 
-                lambda x: self._sb.open_url("http://www.google.com")
+                lambda x: self._sb.open_url("http://www.facebook.com")
         )
+        self._homebtn.set_sensitive(False)
         
         self._lmenu.add(self._loginbtn)
         self._lmenu.add(self._homebtn)
@@ -261,31 +262,39 @@ class Gui:
             return new_albums, mod_albums
             
 
-    def __send_notification(self, title, message, pic, timeout):
+    def __send_notification(self, title, message, pic, timeout, url):
         #attach the libnotification bubble to the tray
         n = pynotify.Notification(title, message, pic)
+        if self._notifications_show_actions and url:
+            #this does not actually work, dont know why....
+            n.add_action(
+                "open",
+                "Open Facebook",
+                lambda n, action, _url: self._sb.open_url(_url),
+                url
+            )
         n.attach_to_status_icon(self.tray)
         n.set_timeout(timeout)
         print "Showing notification...\n   -> %s" % message
         n.show()
         return False
 
-    def _got(self, path, title, message, timeout):
+    def _got(self, path, title, message, timeout, url):
         if path:
             pic = "file://%s" % path
         else:
             pic = None
-        gobject.idle_add(self.__send_notification, title, message, pic, timeout)
+        gobject.idle_add(self.__send_notification, title, message, pic, timeout, url)
 
-    def _send_notification(self, title, message, pic, timeout):
+    def _send_notification(self, title, message, pic, timeout, url):
         if pic:
             self._fbcm.download_photo(
                         self._got,
                         pic,
-                        title,message,timeout,
+                        title,message,timeout,url
             )
         else:
-            gobject.idle_add(self.__send_notification, title, message, pic, timeout)
+            gobject.idle_add(self.__send_notification, title, message, pic, timeout, url)
 
     def _set_tooltip(self, msg):
         gobject.idle_add(self.tray.set_tooltip, msg)
@@ -336,6 +345,7 @@ class Gui:
 
             self._set_tooltip("Logged into Facebook")
             self._loginbtn.set_sensitive(False)
+            self._homebtn.set_sensitive(True)
 
             #get my details, se we have a photo
             self._fbcm.call_facebook_function(
@@ -460,7 +470,8 @@ class Gui:
                         title="Friends",
                         message=msg,
                         pic=pic,
-                        timeout=pynotify.EXPIRES_DEFAULT
+                        timeout=pynotify.EXPIRES_DEFAULT,
+                        url=None
                 )
 
             self.__update_friend_index(result)
@@ -496,7 +507,8 @@ class Gui:
                         title="Albums",
                         message=msg,
                         pic=pic,
-                        timeout=pynotify.EXPIRES_DEFAULT
+                        timeout=pynotify.EXPIRES_DEFAULT,
+                        url=None
                 )
 
 
@@ -542,23 +554,33 @@ class Gui:
                         title="Notifications",
                         message="You have\n" + "\n".join(msgs),
                         pic=self._friend_index[self._uid]["pic_square"],
-                        timeout=pynotify.EXPIRES_DEFAULT
+                        timeout=pynotify.EXPIRES_DEFAULT,
+                        url=None
                 )
             elif self._notifications_first_query:
                 self._send_notification(
                         title="Facebook",
                         message="You have logged in successfully",
                         pic=self._friend_index[self._uid]["pic_square"],
-                        timeout=2000
+                        timeout=2000,
+                        url=None
                 )
 
             self._notifications_first_query = False
             self._notifications = result
 
     def _on_about_clicked(self, widget):
+        #should probbably only do this once.
+        gtk.about_dialog_set_url_hook(
+                lambda dlg, url: self._sb.open_url(url)
+        )
+
         dlg = gtk.AboutDialog()
         dlg.set_name(self.APP_NAME)
         dlg.set_comments(self.APP_DESCRIPTION)
+        dlg.set_copyright("License: GPLv3")
+        dlg.set_website("http://nzjrs.github.com/facebook-notify/")
+        dlg.set_version("1.0")
         dlg.set_authors(("John Stowers",))
         dlg.set_logo_icon_name(self._icon_name)
         dlg.run()
