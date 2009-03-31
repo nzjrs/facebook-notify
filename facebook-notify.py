@@ -27,40 +27,34 @@ import urllib2
 import os.path
 
 # import the backend module
+EW_BACKEND = None
 try:
     import webkit
+    EW_BACKEND = "webkit"
 except:
     # try to import Gecko module
     import gtkmozembed
+    EW_BACKEND = "gtkmozembed"
 
 class BrowserEmbed:
 
-    EW_NO_BACKEND = -1
-    EW_GECKO_BACKEND = 0
-    EW_WEBKIT_BACKEND = 1
-
     def __init__(self):
         self._embed_widget = None
-        self._backend_type = self.EW_NO_BACKEND
-        try:
-            self._embed_widget = webkit.Webkit()
-
+        print "browser using: %s" % EW_BACKEND
+        if EW_BACKEND == "webkit":
+            self._embed_widget = webkit.WebView()
             #disable flash to stop segfault on destroy
             self._embed_widget.get_settings().props.enable_plugins = False
-
-            self._backend_type = self.EW_WEBKIT_BACKEND
-        except:
+        elif EW_BACKEND == "gtkmozembed":
             self._embed_widget = gtkmozembed.MozEmbed()
-            self._backend_type = self.EW_GECKO_BACKEND
 
-    def open(self, url):
-        if (self._backend_type == self.EW_GECKO_BACKEND):
-            return self._embed_widget.load_url(url)
-
-        if (self._backend_type == self.EW_WEBKIT_BACKEND):
+    def open_url(self, url):
+        if EW_BACKEND == "webkit":
             return self._embed_widget.open(url)
-
-        raise Exception('No valid backend available')
+        elif EW_BACKEND == "gtkmozembed":
+            return self._embed_widget.load_url(url)
+        else:
+            raise Exception('No valid backend available')
 
     def get_widget(self):
         return self._embed_widget
@@ -91,7 +85,7 @@ class SimpleBrowser(gtk.Window):
         else:
             self.set_position(gtk.WIN_POS_CENTER)
         self.set_size_request(800,600)
-        self._bv.open(url)
+        self._bv.open_url(url)
         self.show_all()
         
 
