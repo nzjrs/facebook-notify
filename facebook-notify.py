@@ -18,7 +18,6 @@
 import gobject
 import gtk
 import pynotify
-import webkit
 import facebook
 
 import time
@@ -27,17 +26,55 @@ import tempfile
 import urllib2
 import os.path
 
+# import the backend module
+try:
+    import webkit
+except:
+    # try to import Gecko module
+    import gtkmozembed
+
+class BrowserEmbed:
+
+    EW_NO_BACKEND = -1
+    EW_GECKO_BACKEND = 0
+    EW_WEBKIT_BACKEND = 1
+
+    def __init__(self):
+        self._embed_widget = None
+        self._backend_type = self.EW_NO_BACKEND
+        try:
+            self._embed_widget = webkit.Webkit()
+
+            #disable flash to stop segfault on destroy
+            self._embed_widget.get_settings().props.enable_plugins = False
+
+            self._backend_type = self.EW_WEBKIT_BACKEND
+        except:
+            self._embed_widget = gtkmozembed.MozEmbed()
+            self._backend_type = self.EW_GECKO_BACKEND
+
+    def open(self, url):
+        if (self._backend_type == self.EW_GECKO_BACKEND):
+            return self._embed_widget.load_url(url)
+
+        if (self._backend_type == self.EW_WEBKIT_BACKEND):
+            return self._embed_widget.open(url)
+
+        raise Exception('No valid backend available')
+
+    def get_widget(self):
+        return self._embed_widget
+
 class SimpleBrowser(gtk.Window):
     def __init__(self):
         gtk.Window.__init__(self)
         self.isLoginRequest = False
         self._sw = gtk.ScrolledWindow()
-        self._bv = webkit.WebView()
 
-        #disable flash to stop segfault on destroy
-        self._bv.get_settings().props.enable_plugins = False
+        self._bv = BrowserEmbed()
 
-        self._sw.add(self._bv)
+        self._sw.add_with_viewport(self._bv.get_widget())
+        self._sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC);
         self.add(self._sw)
 
     def _move_window_to_status_icon(self, si):
