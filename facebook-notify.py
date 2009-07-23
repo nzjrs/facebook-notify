@@ -29,12 +29,13 @@ import os.path
 # import the backend module
 EW_BACKEND = None
 try:
-    import webkit
-    EW_BACKEND = "webkit"
-except:
-    # try to import Gecko module
+    # try to import Gecko module first
     import gtkmozembed
     EW_BACKEND = "gtkmozembed"
+except:
+    # if that fails, try webkit
+    import webkit
+    EW_BACKEND = "webkit"
 
 class BrowserEmbed:
 
