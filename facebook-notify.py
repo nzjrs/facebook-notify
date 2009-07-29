@@ -460,12 +460,22 @@ class Gui:
 
                 if num_result == num_friends:
 
+                    changed = []
                     for i in range(num_result):
                         if result[i] != self._friends[i]:
+                            has_changed = 0
                             for k in result[i].keys():
-                                print "   -> %s: %s v %s" % (k, result[i][k], self._friends[i][k])
+                                if result[i][k] != self._friends[i][k] and \
+                                   k != 'wall_count':
+                                   has_changed = 1
+                            if (has_changed == 1):
+                                for k in result[i].keys():
+                                    if (result[i][k] != self._friends[i][k]):
+                                        print "   -> %s: %s => %s" % (k, self._friends[i][k], result[i][k])
+                                    else:
+                                        print "   -> %s: %s" % (k, result[i][k])
+                                print
 
-                    changed = [i for i in range(num_result) if result[i] != self._friends[i]]
                     if len(changed) == 1:
                         idx = changed[0]
                         name = result[idx]["name"]
