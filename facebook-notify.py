@@ -22,5 +22,8 @@ from libfacebooknotify.ui import Gui
 if __name__ == "__main__":
     gtk.gdk.threads_init()
     app = Gui()
-    gtk.main()
+    try:
+        gtk.main()
+    except KeyboardInterrupt:
+        app.exit()
 

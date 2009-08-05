@@ -21,7 +21,7 @@ import gtk
 import pynotify
 
 import libfacebooknotify.comm as comm
-from libfacebooknotify import   APP_NAME, APP_DESCRIPTION, APP_VERSION, APP_AUTHORS, APP_HOMEPAGE
+from libfacebooknotify import   APP_NAME, APP_DESCRIPTION, APP_VERSION, APP_AUTHORS, APP_HOMEPAGE, APP_LICENSE
 
 # import the backend module
 EW_BACKEND = None
@@ -144,7 +144,7 @@ class Gui:
         about = gtk.ImageMenuItem(stock_id=gtk.STOCK_ABOUT)
         about.connect("activate", self._on_about_clicked)
         quit = gtk.ImageMenuItem(stock_id=gtk.STOCK_QUIT)
-        quit.connect("activate", self._on_exit_clicked)
+        quit.connect("activate", self.exit)
         self._rmenu.add(about)
         self._rmenu.add(quit)
         self._rmenu.show_all()
@@ -525,7 +525,7 @@ class Gui:
         dlg = gtk.AboutDialog()
         dlg.set_name(APP_NAME)
         dlg.set_comments(APP_DESCRIPTION)
-        dlg.set_copyright("License: GPLv3")
+        dlg.set_copyright("License: %s" % APP_LICENSE)
         dlg.set_website(APP_HOMEPAGE)
         dlg.set_version(APP_VERSION)
         dlg.set_authors(APP_AUTHORS)
@@ -533,7 +533,7 @@ class Gui:
         dlg.run()
         dlg.destroy()
 
-    def _on_exit_clicked(self, widget):
+    def exit(self, *args):
         self._fbcm.stop()
         gtk.main_quit()
 
