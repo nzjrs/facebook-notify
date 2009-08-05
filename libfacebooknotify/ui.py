@@ -21,6 +21,7 @@ import gtk
 import pynotify
 
 import libfacebooknotify.comm as comm
+from libfacebooknotify import   APP_NAME, APP_DESCRIPTION, APP_VERSION, APP_AUTHORS, APP_HOMEPAGE
 
 # import the backend module
 EW_BACKEND = None
@@ -98,12 +99,8 @@ class Gui:
     STATE_NOTIFICATIONS = 2
     STATE_MAX = 3
 
-    ICON_NAME = "facebook"
-    APP_NAME = "Facebook Notifier"
-    APP_DESCRIPTION = "Facebook Notification Monitor for GNOME"
-
     def __init__(self):
-        pynotify.init(self.APP_NAME)
+        pynotify.init(APP_NAME)
         self._create_gui()
         self._fbcm = comm.FacebookCommunicationManager()
         self._fbcm.start()
@@ -153,12 +150,14 @@ class Gui:
         self._rmenu.show_all()
 
     def _create_gui(self):
+        icon_name = "facebook"
+
         #load themed or fallback app icon
         theme = gtk.icon_theme_get_default()
-        if not theme.has_icon(self.ICON_NAME):
+        if not theme.has_icon(icon_name):
             theme.prepend_search_path(os.path.join(os.path.dirname(os.path.abspath(__file__)),"..", "icons"))
-        if theme.has_icon(self.ICON_NAME):
-            self._icon_name = self.ICON_NAME
+        if theme.has_icon(icon_name):
+            self._icon_name = icon_name
         else:
             self._icon_name = gtk.STOCK_NETWORK
 
@@ -524,12 +523,12 @@ class Gui:
         )
 
         dlg = gtk.AboutDialog()
-        dlg.set_name(self.APP_NAME)
-        dlg.set_comments(self.APP_DESCRIPTION)
+        dlg.set_name(APP_NAME)
+        dlg.set_comments(APP_DESCRIPTION)
         dlg.set_copyright("License: GPLv3")
-        dlg.set_website("http://nzjrs.github.com/facebook-notify/")
-        dlg.set_version("1.0")
-        dlg.set_authors(("John Stowers",))
+        dlg.set_website(APP_HOMEPAGE)
+        dlg.set_version(APP_VERSION)
+        dlg.set_authors(APP_AUTHORS)
         dlg.set_logo_icon_name(self._icon_name)
         dlg.run()
         dlg.destroy()
