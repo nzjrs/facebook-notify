@@ -414,7 +414,6 @@ class Gui:
                 print "   -> first run"
                 self._first_friends_query = False
             else:
-                print "   -> friend changes detected"
                 num_result = len(result)
                 num_friends = len(self._friends)
 
@@ -429,12 +428,15 @@ class Gui:
                                    k != 'wall_count':
                                    has_changed = 1
                             if (has_changed == 1):
+                                changed.append(i)
                                 for k in result[i].keys():
                                     if (result[i][k] != self._friends[i][k]):
                                         print "   -> %s: %s => %s" % (k, self._friends[i][k], result[i][k])
                                     else:
                                         print "   -> %s: %s" % (k, result[i][k])
                                 print
+
+                    print "   -> %d friend changes detected" % len(changed)
 
                     if len(changed) == 1:
                         idx = changed[0]
@@ -461,7 +463,7 @@ class Gui:
                         names = [result[i]["name"] for i in changed]
                         msg = "%s and %s updated their profiles" % (", ".join(names[0:-1]), names[-1])
                         pic = None
-                    else:
+                    elif changed:
                         msg = "%s friends updated their profiles" % len(changed)
                         pic = None
                 else:
