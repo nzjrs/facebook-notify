@@ -1,3 +1,9 @@
+facebook-notify (0.1-1ubuntu1) jaunty; urgency=low
+
+  * Rebuild
+
+ -- John Stowers <john.stowers@gmail.com>  Thu, 06 Aug 2009 12:11:48 +1200
+
 facebook-notify (0.1-1ubuntu0) jaunty; urgency=low
 
   * Initial release
