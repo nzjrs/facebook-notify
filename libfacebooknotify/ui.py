@@ -14,6 +14,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import time
 import os.path
 
 import gobject
@@ -85,6 +86,35 @@ class SimpleBrowser(gtk.Window):
         self.set_size_request(800,600)
         self._bv.open_url(url)
         self.show_all()
+
+class HistoryMenuItem(gtk.ImageMenuItem):
+    def __init__(self, title, message, pic):
+        gtk.ImageMenuItem.__init__(self, stock_id=gtk.STOCK_DIALOG_INFO)
+
+        self.set_tooltip_markup(message)
+
+        if pic:
+            pb = gtk.gdk.pixbuf_new_from_file_at_size(
+                            pic.replace("file://",""),
+                            *gtk.icon_size_lookup(gtk.ICON_SIZE_MENU))
+            self.set_image(gtk.image_new_from_pixbuf(pb))
+
+        lbl = self.get_children()[0]
+        lbl.set_text(title)
+
+        #remove the label, and place it in a hbox
+        self.remove(lbl)
+
+        hb = gtk.HBox()
+        hb.pack_start(lbl, True, True)
+
+        #add another label beside it, that shows the time this item was added
+        mtime = gtk.Label('<span style="italic" weight="light">%s</span>' % time.strftime("%I:%M %p"))
+        mtime.props.xalign = 1.0
+        mtime.props.use_markup = True
+        hb.pack_start(mtime, False, False)
+        
+        self.add(hb)
         
 class Gui:
 
@@ -98,6 +128,8 @@ class Gui:
     STATE_ALBUMS = 1
     STATE_NOTIFICATIONS = 2
     STATE_MAX = 3
+
+    HISTORY_MAX = 5
 
     def __init__(self):
         pynotify.init(APP_NAME)
@@ -134,10 +166,30 @@ class Gui:
                 lambda x: self._sb.open_url("http://www.facebook.com")
         )
         self._homebtn.set_sensitive(False)
-        
+
         self._lmenu.add(self._loginbtn)
         self._lmenu.add(self._homebtn)
+
+        self._lmenu.add(gtk.SeparatorMenuItem())
+        title = gtk.MenuItem("Notification History")
+        #right align the label inside the MenuItem
+        title.get_children()[0].props.xalign = 1.0
+        title.set_sensitive(False)
+        self._lmenu.add(title)
+        self._lmenu_summaries = []
+
         self._lmenu.show_all()
+
+    def _add_lmenu_notification_summary(self, title, message, pic, url):
+        if len(self._lmenu_summaries) == self.HISTORY_MAX:
+            item = self._lmenu_summaries[0]
+            self._lmenu_summaries.remove(item)
+            self._lmenu.remove(item)
+
+        new = HistoryMenuItem(title, message, pic)
+        self._lmenu.add(new)
+        self._lmenu_summaries.append(new)
+        new.show_all()
 
     def _create_right_menu(self):
         self._rmenu = gtk.Menu()
@@ -200,6 +252,9 @@ class Gui:
             
 
     def __send_notification(self, title, message, pic, timeout, url):
+        #add a history item to the menu
+        self._add_lmenu_notification_summary(title, message, pic, url)
+
         #attach the libnotification bubble to the tray
         n = pynotify.Notification(title, message, pic)
         if self._notifications_show_actions and url:
@@ -506,8 +561,8 @@ class Gui:
                 )
             elif self._notifications_first_query:
                 self._send_notification(
-                        title="Facebook",
-                        message="You have logged in successfully",
+                        title="Logged in",
+                        message="You have logged in to Facebook successfully",
                         pic=self._friend_index[self._uid]["pic_square"],
                         timeout=2000,
                         url=None
