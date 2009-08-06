@@ -1,3 +1,15 @@
+facebook-notify (0.1-1ubuntu3) jaunty; urgency=low
+
+  * Rebuild
+
+ -- John Stowers <john.stowers@gmail.com>  Thu, 06 Aug 2009 13:15:29 +1200
+
+facebook-notify (0.1-1ubuntu2) jaunty; urgency=low
+
+  * Rebuild
+
+ -- John Stowers <john.stowers@gmail.com>  Thu, 06 Aug 2009 13:04:58 +1200
+
 facebook-notify (0.1-1ubuntu1) jaunty; urgency=low
 
   * Rebuild

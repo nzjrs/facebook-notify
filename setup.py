@@ -12,7 +12,7 @@ setup(
     url=APP_HOMEPAGE,
     license=APP_LICENSE,
     scripts=["facebook-notify.py"],
-    packages=["libfacebooknotify"],
+    packages=["libfacebooknotify", "libfacebooknotify.facebook"],
     data_files=[
         ('share/applications', ['facebook.desktop']),
         ('usr/share/icons/hicolor/16x16/apps', ['icons/hicolor/16x16/apps/facebook.png']),
