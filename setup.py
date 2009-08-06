@@ -15,9 +15,9 @@ setup(
     packages=["libfacebooknotify", "libfacebooknotify.facebook"],
     data_files=[
         ('share/applications', ['facebook.desktop']),
-        ('usr/share/icons/hicolor/16x16/apps', ['icons/hicolor/16x16/apps/facebook.png']),
-        ('usr/share/icons/hicolor/22x22/apps', ['icons/hicolor/22x22/apps/facebook.png']),
-        ('usr/share/icons/hicolor/48x48/apps', ['icons/hicolor/48x48/apps/facebook.png'])],
+        ('share/icons/hicolor/16x16/apps', ['icons/hicolor/16x16/apps/facebook.png']),
+        ('share/icons/hicolor/22x22/apps', ['icons/hicolor/22x22/apps/facebook.png']),
+        ('share/icons/hicolor/48x48/apps', ['icons/hicolor/48x48/apps/facebook.png'])],
 )
 
 
