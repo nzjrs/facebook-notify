@@ -1,0 +1,5 @@
+* Update to use the new stream API
+  - http://arstechnica.com/open-source/news/2009/04/how-to-using-the-new-facebook-stream-api-in-a-desktop-app.ars
+  - http://wiki.developers.facebook.com/index.php/Stream_(FQL)
+  - http://wiki.developers.facebook.com/index.php/Using_Activity_Streams
+* Add status set/get
