@@ -44,14 +44,16 @@ http://undefined.org/python/#simplejson to download it, or do
 apt-get install python-simplejson on a Debian-like system.
 """
 
-import md5
 import sys
 import time
 import struct
 import urllib
 import urllib2
 import httplib
-import hashlib
+try:
+    import hashlib
+except ImportError:
+    import md5 as hashlib
 import binascii
 import urlparse
 import mimetypes
@@ -97,7 +99,7 @@ try:
 
         result = urlfetch.fetch(url, method=method,
                                 payload=data, headers=headers)
-        
+
         if result.status_code == 200:
             return result.content
         else:
@@ -107,7 +109,7 @@ except ImportError:
     def urlread(url, data=None):
         res = urllib2.urlopen(url, data=data)
         return res.read()
-    
+
 __all__ = ['Facebook']
 
 VERSION = '0.1'
@@ -131,6 +133,13 @@ METHODS = {
     'admin': {
         'getAllocation': [
             ('integration_point_name', str, []),
+        ],
+    },
+
+    # auth methods
+    'auth': {
+        'revokeAuthorization': [
+            ('uid', int, ['optional']),
         ],
     },
 
@@ -204,6 +213,7 @@ METHODS = {
             ('template_data', json, ['optional']),
             ('target_ids', list, ['optional']),
             ('body_general', str, ['optional']),
+            ('story_size', int, ['optional']),
         ],
     },
 
@@ -446,6 +456,18 @@ METHODS = {
         ],
     },
 
+    # status methods
+    'status': {
+        'get': [
+            ('uid', int, ['optional']),
+            ('limit', int, ['optional']),
+        ],
+        'set': [
+            ('status', str, ['optional']),
+            ('uid', int, ['optional']),
+        ],
+    },
+
     # fbml methods
     'fbml': {
         'refreshImgSrc': [
@@ -504,6 +526,60 @@ METHODS = {
         'getUnconnectedFriendsCount': [
         ],
     },
+
+    #stream methods (beta)
+    'stream' : {
+        'addComment' : [
+            ('post_id', int, []),
+            ('comment', str, []),
+            ('uid', int, ['optional']),
+        ],
+
+        'addLike': [
+            ('uid', int, ['optional']),
+            ('post_id', int, ['optional']),
+        ],
+
+        'get' : [
+            ('viewer_id', int, ['optional']),
+            ('source_ids', list, ['optional']),
+            ('start_time', int, ['optional']),
+            ('end_time', int, ['optional']),
+            ('limit', int, ['optional']),
+            ('filter_key', str, ['optional']),
+        ],
+
+        'getComments' : [
+            ('post_id', int, []),
+        ],
+
+        'getFilters' : [
+            ('uid', int, ['optional']),
+        ],
+
+        'publish' : [
+            ('message', str, ['optional']),
+            ('attachment', json, ['optional']),
+            ('action_links', list, ['optional']),
+            ('target_id', str, ['optional']),
+            ('uid', str, ['optional']),
+        ],
+
+        'remove' : [
+            ('post_id', int, []),
+            ('uid', int, ['optional']),
+        ],
+
+        'removeComment' : [
+            ('comment_id', int, []),
+            ('uid', int, ['optional']),
+        ],
+
+        'removeLike' : [
+            ('uid', int, ['optional']),
+            ('post_id', int, ['optional']),
+        ],
+    }
 }
 
 class Proxy(object):
@@ -587,7 +663,7 @@ class FacebookError(Exception):
         return 'Error %s: %s' % (self.code, self.msg)
 
 
-class AuthProxy(Proxy):
+class AuthProxy(AuthProxy):
     """Special proxy for facebook.auth."""
 
     def getSession(self):
@@ -624,7 +700,7 @@ class FriendsProxy(FriendsProxy):
 class PhotosProxy(PhotosProxy):
     """Special proxy for facebook.photos."""
 
-    def upload(self, image, aid=None, caption=None, size=(604, 1024), filename=None):
+    def upload(self, image, aid=None, caption=None, size=(604, 1024), filename=None, callback=None):
         """Facebook API call. See http://developers.facebook.com/documentation.php?v=1.0&method=photos.upload
 
         size -- an optional size (width, height) to resize the image to before uploading. Resizes by default
@@ -667,21 +743,38 @@ class PhotosProxy(PhotosProxy):
         content_type, body = self.__encode_multipart_formdata(list(args.iteritems()), [(image, data)])
         urlinfo = urlparse.urlsplit(self._client.facebook_url)
         try:
-            h = httplib.HTTP(urlinfo[1])
+            content_length = len(body)
+            chunk_size = 4096
+
+            h = httplib.HTTPConnection(urlinfo[1])
             h.putrequest('POST', urlinfo[2])
             h.putheader('Content-Type', content_type)
-            h.putheader('Content-Length', str(len(body)))
+            h.putheader('Content-Length', str(content_length))
             h.putheader('MIME-Version', '1.0')
             h.putheader('User-Agent', 'PyFacebook Client Library')
             h.endheaders()
-            h.send(body)
 
-            reply = h.getreply()
+            if callback:
+                count = 0
+                while len(body) > 0:
+                    if len(body) < chunk_size:
+                        data = body
+                        body = ''
+                    else:
+                        data = body[0:chunk_size]
+                        body = body[chunk_size:]
 
-            if reply[0] != 200:
-                raise Exception('Error uploading photo: Facebook returned HTTP %s (%s)' % (reply[0], reply[1]))
+                    h.send(data)
+                    count += 1
+                    callback(count, chunk_size, content_length)
+            else:
+                h.send(body)
 
-            response = h.file.read()
+            response = h.getresponse()
+
+            if response.status != 200:
+                raise Exception('Error uploading photo: Facebook returned HTTP %s (%s)' % (response.status, response.reason))
+            response = response.read()
         except:
             # sending the photo failed, perhaps we are using GAE
             try:
@@ -757,6 +850,10 @@ class Facebook(object):
         True if this is a desktop app, False otherwise. Used for determining how to
         authenticate.
 
+    ext_perms
+        Any extended permissions that the user has granted to your application.
+        This parameter is set only if the user has granted any.
+
     facebook_url
         The url to use for Facebook requests.
 
@@ -766,11 +863,20 @@ class Facebook(object):
     in_canvas
         True if the current request is for a canvas page.
 
+    in_profile_tab
+        True if the current request is for a user's tab for your application.
+
     internal
         True if this Facebook object is for an internal application (one that can be added on Facebook)
 
+    locale
+        The user's locale. Default: 'en_US'
+
     page_id
         Set to the page_id of the current page (if any)
+
+    profile_update_time
+        The time when this user's profile was last updated. This is a UNIX timestamp. Default: None if unknown.
 
     secret
         Secret that is used after getSession for desktop apps.
@@ -819,11 +925,15 @@ class Facebook(object):
         self.uid = None
         self.page_id = None
         self.in_canvas = False
+        self.in_profile_tab = False
         self.added = False
         self.app_name = app_name
         self.callback_path = callback_path
         self.internal = internal
         self._friends = None
+        self.locale = 'en_US'
+        self.profile_update_time = None
+        self.ext_perms = None
         self.proxy = proxy
         if facebook_url is None:
             self.facebook_url = FACEBOOK_URL
@@ -837,14 +947,12 @@ class Facebook(object):
         for namespace in METHODS:
             self.__dict__[namespace] = eval('%sProxy(self, \'%s\')' % (namespace.title(), 'facebook.%s' % namespace))
 
-        self.auth = AuthProxy(self, 'facebook.auth')
-
 
     def _hash_args(self, args, secret=None):
         """Hashes arguments by joining key=value pairs, appending a secret, and then taking the MD5 hex digest."""
         # @author: houyr
         # fix for UnicodeEncodeError
-        hasher = md5.new(''.join(['%s=%s' % (isinstance(x, unicode) and x.encode("utf-8") or x, isinstance(args[x], unicode) and args[x].encode("utf-8") or args[x]) for x in sorted(args.keys())]))
+        hasher = hashlib.md5(''.join(['%s=%s' % (isinstance(x, unicode) and x.encode("utf-8") or x, isinstance(args[x], unicode) and args[x].encode("utf-8") or args[x]) for x in sorted(args.keys())]))
         if secret:
             hasher.update(secret)
         elif self.secret:
@@ -997,7 +1105,7 @@ class Facebook(object):
             proxy_handler = urllib2.ProxyHandler(self.proxy)
             opener = urllib2.build_opener(proxy_handler)
             if secure:
-                response = opener.open(self.facebook_secure_url, post_data).read() 
+                response = opener.open(self.facebook_secure_url, post_data).read()
             else:
                 response = opener.open(self.facebook_url, post_data).read()
         else:
@@ -1008,7 +1116,7 @@ class Facebook(object):
 
         return self._parse_response(response, method)
 
-    
+
     # URL helpers
     def get_url(self, page, **args):
         """
@@ -1022,7 +1130,7 @@ class Facebook(object):
     def get_app_url(self, path=''):
         """
         Returns the URL for this app's canvas page, according to app_name.
-        
+
         """
         return 'http://apps.facebook.com/%s/%s' % (self.app_name, path)
 
@@ -1163,11 +1271,26 @@ class Facebook(object):
         if params.get('in_canvas') == '1':
             self.in_canvas = True
 
+        if params.get('in_profile_tab') == '1':
+            self.in_profile_tab = True
+
         if params.get('added') == '1':
             self.added = True
 
         if params.get('expires'):
             self.session_key_expires = int(params['expires'])
+
+        if 'locale' in params:
+            self.locale = params['locale']
+
+        if 'profile_update_time' in params:
+            try:
+                self.profile_update_time = int(params['profile_update_time'])
+            except ValueError:
+                pass
+
+        if 'ext_perms' in params:
+            self.ext_perms = params['ext_perms']
 
         if 'friends' in params:
             if params['friends']:
@@ -1189,6 +1312,8 @@ class Facebook(object):
                 self.uid = params['profile_user']
             else:
                 return False
+        elif 'canvas_user' in params:
+            self.uid = params['canvas_user']
         else:
             return False
 
@@ -1235,8 +1360,8 @@ class Facebook(object):
 
 
         vals = ''.join(['%s=%s' % (x.replace(self.api_key+"_",""), cookies[x]) for x in sigkeys])
-        hasher = md5.new(vals)
-        
+        hasher = hashlib.md5(vals)
+
         hasher.update(self.secret_key)
         digest = hasher.hexdigest()
         if digest == cookies[self.api_key]:
