@@ -127,7 +127,8 @@ class Gui:
     STATE_FRIENDS = 0
     STATE_ALBUMS = 1
     STATE_NOTIFICATIONS = 2
-    STATE_MAX = 3
+    STATE_NOTIFICATIONSLIST = 3
+    STATE_MAX = 4
 
     HISTORY_MAX = 5
 
@@ -146,6 +147,8 @@ class Gui:
         self._notifications = {}
         self._notifications_first_query = True
         self._notifications_show_actions = 'actions' in pynotify.get_server_caps()
+        self._notificationslist = {}
+        self._notifications_lasttime = 0
         self._album_index = {}
         self._first_album_query = True
         self._state = 0
@@ -163,7 +166,7 @@ class Gui:
         self._homebtn.get_children()[0].set_text("Open Facebook Homepage")
         self._homebtn.connect(
                 "activate", 
-                lambda x: self._sb.open_url("http://www.facebook.com")
+                lambda x: self._sb.open_url("http://x.facebook.com/")
         )
         self._homebtn.set_sensitive(False)
 
@@ -326,8 +329,7 @@ class Gui:
             self._fbcm.call_facebook_function(
                         self._login_got_session,
                         "auth.getSession")
-        #Stop the login window being destoyed so we can re-use it later,
-        #now the user has already logged in
+        #Stop the login window being destoyed so we can re-use it later, now the user has already logged in
         self._sb.hide()
         return True
 
@@ -352,6 +354,16 @@ class Gui:
             self._fbcm.call_facebook_function(
                     self._got_notifications,
                     "notifications.get"
+            )
+            
+            # notificationslist
+            self._fbcm.call_facebook_function(
+            		self._got_notificationslist,
+            		"fql.query",
+            		"SELECT created_time, title_text, body_text, href FROM notification WHERE recipient_id=%s AND is_unread = 1 AND is_hidden = 0 AND created_time > %s" % (
+            			self._uid,
+            			self._notifications_lasttime
+            		)
             )
             
             #schdule other checks for the future
@@ -386,6 +398,17 @@ class Gui:
                     self._got_notifications,
                     "notifications.get"
             )
+            
+        if self._state == self.STATE_NOTIFICATIONSLIST:
+            self._fbcm.call_facebook_function(
+                    self._got_notificationslist,
+                    "fql.query",
+            		"SELECT created_time, title_text, body_text, href FROM notification WHERE recipient_id=%s AND is_hidden = 0 AND is_unread = 1 AND created_time > %s" % (
+            			self._uid,
+            			self._notifications_lasttime
+            		)
+            )
+
         self._state = (self._state + 1) % self.STATE_MAX
 
         #keep running
@@ -401,6 +424,37 @@ class Gui:
         if result:
             print "   -> got my details"
             self._friend_index[self._uid] = result[0]
+
+    def _got_notificationslist(self, result):
+    	#data returned
+    	
+    	#may add consolidation for notifications pertaining to same thing (via href)
+    	if result and result != self._notificationslist:
+    		msg = ""
+    		num_result = len(result)
+    		
+    		if num_result > 0:
+				print "   -> %d new notifications detected" % num_result
+				for i in range(num_result):
+					print "   -> %s" % result[i]["title_text"]
+				
+				if num_result == 1:
+					if result[0]["body_text"] == "":
+						msg = "%s" % result[0]["title_text"]
+					else:
+	   					msg = "%s \n\n<i>%s</i>" % (result[0]["title_text"], result[0]["body_text"])
+  				else:
+   					msg = "%d new notifications" % num_result
+   				self._send_notification(
+					title="Notifications",
+					message=msg,
+					pic=None,
+					timeout=pynotify.EXPIRES_DEFAULT,
+					url=None
+	            )
+	        self._notifications_lasttime = result[0]["created_time"]
+	        self._notificationslist = result
+
 
     def _got_friends(self, result):
         #data returned by facebook
@@ -514,8 +568,7 @@ class Gui:
                         timeout=pynotify.EXPIRES_DEFAULT,
                         url=None
                 )
-
-
+    
     def _got_notifications(self, result):
         #data returned by facebook
         #{
