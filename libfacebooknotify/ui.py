@@ -21,42 +21,9 @@ import gobject
 import gtk
 import pynotify
 
-import libfacebooknotify.comm as comm
-from libfacebooknotify import   APP_NAME, APP_DESCRIPTION, APP_VERSION, APP_AUTHORS, APP_HOMEPAGE, APP_LICENSE
-
-# import the backend module
-EW_BACKEND = None
-try:
-    # try to import Gecko module first
-    import gtkmozembeds
-    EW_BACKEND = "gtkmozembed"
-except:
-    # if that fails, try webkit
-    import webkit
-    EW_BACKEND = "webkit"
-
-class BrowserEmbed:
-
-    def __init__(self):
-        self._embed_widget = None
-        print "browser using: %s" % EW_BACKEND
-        if EW_BACKEND == "webkit":
-            self._embed_widget = webkit.WebView()
-            #disable flash to stop segfault on destroy
-            self._embed_widget.get_settings().props.enable_plugins = False
-        elif EW_BACKEND == "gtkmozembed":
-            self._embed_widget = gtkmozembed.MozEmbed()
-
-    def open_url(self, url):
-        if EW_BACKEND == "webkit":
-            return self._embed_widget.open(url)
-        elif EW_BACKEND == "gtkmozembed":
-            return self._embed_widget.load_url(url)
-        else:
-            raise Exception('No valid backend available')
-
-    def get_widget(self):
-        return self._embed_widget
+from libfacebooknotify import APP_NAME, APP_DESCRIPTION, APP_VERSION, APP_AUTHORS, APP_HOMEPAGE, APP_LICENSE
+from libfacebooknotify.comm import FacebookCommunicationManager
+from libfacebooknotify.browser import BrowserEmbed
 
 class SimpleBrowser(gtk.Window):
     def __init__(self):
@@ -133,12 +100,13 @@ class Gui:
     def __init__(self):
         pynotify.init(APP_NAME)
         self._create_gui()
-        self._fbcm = comm.FacebookCommunicationManager()
+        self._fbcm = FacebookCommunicationManager()
         self._fbcm.start()
         self._sb = SimpleBrowser()
         self._sb.connect("delete-event", self._login_window_closed)
 
         self._uid = None
+        self._tried_permissions = False
         self._friends = []
         self._friend_index = {}
         self._first_friends_query = True
@@ -314,19 +282,27 @@ class Gui:
         else:
             self._set_tooltip("Error Connecting to Facebook")
 
-    def _login_open_window(self, *args):
+    def _login_open_window(self, btn=None, url=None):
+        if not url:
+            url = self._fbcm.get_login_url()
         self._sb.open_url(
-                    self._fbcm.get_login_url(), 
+                    url, 
                     statusIcon=None,
                     isLoginRequest=True
         )
 
     def _login_window_closed(self, *args):
         if self._sb.isLoginRequest:
-            self._set_tooltip("Logging into Facebook...")
-            self._fbcm.call_facebook_function(
-                        self._login_got_session,
-                        "auth.getSession")
+            if self._uid == None:
+                #we are here the first time, to log in
+                self._set_tooltip("Logging into Facebook...")
+                self._fbcm.call_facebook_function(
+                            self._login_got_session,
+                            "auth.getSession")
+            else:
+                #we are here for the second time, with permissions
+                self._startup()
+
         #Stop the login window being destoyed so we can re-use it later, now the user has already logged in
         self._sb.hide()
         return True
@@ -334,43 +310,53 @@ class Gui:
     def _login_got_session(self, result):
         if result and result.get("session_key") and result.get('uid'):
             self._uid = result.get('uid')
+            self._startup()
+        else:
+            self._set_tooltip("Error Logging into Facebook")
 
+    def _startup(self):
+        if self._fbcm.got_permissions() or self._tried_permissions:
             self._set_tooltip("Logged into Facebook")
             self._loginbtn.set_sensitive(False)
             self._homebtn.set_sensitive(True)
-
-            #get my details, se we have a photo
-            self._fbcm.call_facebook_function(
-                self._got_me,
-                "fql.query",
-                "SELECT uid, name, status, pic_small, pic_square, wall_count, notes_count, profile_update_time FROM user WHERE uid = %s" % (
-                    self._uid,
-                )
-            )
-
-            #check notifications now
-            self._fbcm.call_facebook_function(
-                    self._got_notifications,
-                    "notifications.get"
-            )
-            
-            # notificationslist
-            self._fbcm.call_facebook_function(
-            		self._got_notificationslist,
-            		"fql.query",
-            		"SELECT created_time, title_text, body_text, href FROM notification WHERE recipient_id=%s AND is_unread = 1 AND is_hidden = 0 AND created_time > %s" % (
-            			self._uid,
-            			self._notifications_lasttime
-            		)
-            )
-            
-            #schdule other checks for the future
-            gobject.timeout_add_seconds(
-                        self.SECONDS_UPDATE_FREQ,
-                        self._do_update
-            )
         else:
-            self._set_tooltip("Error Logging into Facebook")
+            self._tried_permissions = True
+            self._login_open_window(
+                    url=self._fbcm.get_permissions_url())
+            #we come back here when the user closes the window after granting us
+            #premissions
+            return
+
+        #get my details, se we have a photo
+        self._fbcm.call_facebook_function(
+            self._got_me,
+            "fql.query",
+            "SELECT uid, name, status, pic_small, pic_square, wall_count, notes_count, profile_update_time FROM user WHERE uid = %s" % (
+                self._uid,
+            )
+        )
+
+        #check notifications now
+        self._fbcm.call_facebook_function(
+                self._got_notifications,
+                "notifications.get"
+        )
+        
+        # notificationslist
+        self._fbcm.call_facebook_function(
+        		self._got_notificationslist,
+        		"fql.query",
+        		"SELECT created_time, title_text, body_text, href FROM notification WHERE recipient_id=%s AND is_unread = 1 AND is_hidden = 0 AND created_time > %s" % (
+        			self._uid,
+        			self._notifications_lasttime
+        		)
+        )
+        
+        #schdule other checks for the future
+        gobject.timeout_add_seconds(
+                    self.SECONDS_UPDATE_FREQ,
+                    self._do_update
+        )
 
     def _do_update(self):
         if self._state == self.STATE_FRIENDS:
@@ -470,32 +456,32 @@ class Gui:
                 num_friends = len(self._friends)
 
                 if num_result == num_friends:
-
                     changed = []
                     ignored = {}
                     for i in range(num_result):
+                        ignored[i] = {}
                         if result[i] != self._friends[i]:
                             has_changed = 0
                             for k in result[i].keys():
                                 if result[i][k] != self._friends[i][k]:
                                     #ignore wall posts
                                     if k == 'wall_count':
-                                        ignored['wall_count'] = True
+                                        ignored[i]['wall_count'] = True
                                         continue
                                     #ignore notes
                                     if k == 'notes_count':
-                                        ignored['notes_count'] = True
+                                        ignored[i]['notes_count'] = True
                                         continue
                                     if k == 'status':
                                         ns = result[i][k]
                                         os = self._friends[i][k]
                                         #ignore empty status updates
                                         if len(ns['message']) < 1 or len(os['message']) < 1:
-                                            ignored['status'] = True
+                                            ignored[i]['status'] = True
                                             continue
                                         #ignore updates with broken time
                                         if ns['time'] == '0':
-                                            ignored['status'] = True
+                                            ignored[i]['status'] = True
                                             continue
                                     #sometimes the pic url changes (because of the CDN), so
                                     #only look at the pic name
@@ -503,7 +489,7 @@ class Gui:
                                         np = result[i][k].split("/")[-1]
                                         op = self._friends[i][k].split("/")[-1]
                                         if np == op:
-                                            ignored[k] = True
+                                            ignored[i][k] = True
                                             continue
                                     #valid change
                                     has_changed = 1
@@ -523,23 +509,21 @@ class Gui:
                     print "   -> %d friend changes detected" % len(changed)
 
                     if len(changed) == 1:
-                        idx = changed[0]
-                        name = result[idx]["name"]
-                        pic = result[idx]["pic_square"]
+                        i = changed[0]
+                        name = result[i]["name"]
+                        pic = result[i]["pic_square"]
 
-                        if  result[idx]["status"] and \
-                            self._friends[idx]["status"] and \
-                            result[idx]["status"]["message"] != self._friends[idx]["status"]["message"]:
-                            msg = "%s updated their status\n\n<i>%s</i>" % (name, result[idx]["status"]["message"])
-                        elif result[idx]["pic_square"] != self._friends[idx]["pic_square"]:
+                        if  not ignored[i]["status"] and result[i]["status"]["message"] != self._friends[i]["status"]["message"]:
+                            msg = "%s updated their status\n\n<i>%s</i>" % (name, result[i]["status"]["message"])
+                        elif not ignored[i]["pic_square"] and result[i]["pic_square"] != self._friends[i]["pic_square"]:
                             msg = "%s changed their profile picture" % name
-                        elif result[idx]["wall_count"] != self._friends[idx]["wall_count"]:
-                            diff = int(result[idx]["wall_count"]) - int(self._friends[idx]["wall_count"])
+                        elif not ignored[i]["wall_count"] and result[i]["wall_count"] != self._friends[i]["wall_count"]:
+                            diff = int(result[i]["wall_count"]) - int(self._friends[i]["wall_count"])
                             if diff == 1:
                                 msg = "Someone wrote on %s's wall" % name
                             else:
                                 msg = "%s people wrote on %s wall" % (diff, name)
-                        elif result[idx]["notes_count"] != self._friends[idx]["notes_count"]:
+                        elif not ignored[i]["notes_count"] and result[i]["notes_count"] != self._friends[i]["notes_count"]:
                             msg = "%s posted a new note" % name
                         else:
                             msg = "%s updated his/her profile" % name

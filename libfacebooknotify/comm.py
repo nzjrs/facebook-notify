@@ -1,3 +1,4 @@
+
 #Facebook Notify - Facebook status notifier for GNOME
 #Copyright (C) 2009 John Stowers <john.stowers@gmail.com>
 #
@@ -61,6 +62,13 @@ class FacebookCommunicationManager(threading.Thread):
     def get_login_url(self):
         return self._fb.get_login_url()
 
+    def get_permissions_url(self):
+        return self._fb.get_ext_perm_url("offline_access")
+
+    def got_permissions(self):
+        print self._fb.ext_perms
+        return self._fb.ext_perms
+
     def run(self):
         while not self._stopped:
             while True:
@@ -74,11 +82,11 @@ class FacebookCommunicationManager(threading.Thread):
                     try:
                         res = func(*args)
                         print "finished"
-                    except facebook.FacebookError:
-                        print "error"
+                    except facebook.FacebookError, e:
+                        print "facebook error: %s" % e.msg
                         res = {}
-                    except urllib2.URLError:
-                        print "error"
+                    except urllib2.URLError, e:
+                        print "comm error: %s" % str(e.reason)
                         res = {}
                     cb(res)
                 except IndexError:
@@ -99,7 +107,7 @@ class FacebookCommunicationManager(threading.Thread):
                         print "finished"
                         self._photo_cache[url] = pic
                     except urllib2.URLError, e:
-                        print "error: %s" % e
+                        print "error: %s" % str(e.reason)
                         pic = ""
 
                     cb(pic, *args, **kwargs)
