@@ -28,7 +28,7 @@ from libfacebooknotify import   APP_NAME, APP_DESCRIPTION, APP_VERSION, APP_AUTH
 EW_BACKEND = None
 try:
     # try to import Gecko module first
-    import gtkmozembed
+    import gtkmozembeds
     EW_BACKEND = "gtkmozembed"
 except:
     # if that fails, try webkit
@@ -72,10 +72,8 @@ class SimpleBrowser(gtk.Window):
 
     def _move_window_to_status_icon(self, si):
         screen, pos, orientation = si.get_geometry()
-        #window.set_gravity(gtk.gdk.GRAVITY_SOUTH_EAST)
-        #width, height = window.get_size()
-        #window.move(gtk.gdk.screen_width() - width, gtk.gdk.screen_height() - height)
-
+        #self.set_gravity(gtk.gdk.GRAVITY_NORTH_EAST)
+        #self.move(pos.x, pos.y)
 
     def open_url(self, url, statusIcon=None, isLoginRequest=False):
         self.isLoginRequest = isLoginRequest
@@ -474,18 +472,50 @@ class Gui:
                 if num_result == num_friends:
 
                     changed = []
+                    ignored = {}
                     for i in range(num_result):
                         if result[i] != self._friends[i]:
                             has_changed = 0
                             for k in result[i].keys():
-                                if result[i][k] != self._friends[i][k] and \
-                                   k != 'wall_count':
-                                   has_changed = 1
+                                if result[i][k] != self._friends[i][k]:
+                                    #ignore wall posts
+                                    if k == 'wall_count':
+                                        ignored['wall_count'] = True
+                                        continue
+                                    #ignore notes
+                                    if k == 'notes_count':
+                                        ignored['notes_count'] = True
+                                        continue
+                                    if k == 'status':
+                                        ns = result[i][k]
+                                        os = self._friends[i][k]
+                                        #ignore empty status updates
+                                        if len(ns['message']) < 1 or len(os['message']) < 1:
+                                            ignored['status'] = True
+                                            continue
+                                        #ignore updates with broken time
+                                        if ns['time'] == '0':
+                                            ignored['status'] = True
+                                            continue
+                                    #sometimes the pic url changes (because of the CDN), so
+                                    #only look at the pic name
+                                    if k == 'pic_square' or k == 'pic_small':
+                                        np = result[i][k].split("/")[-1]
+                                        op = self._friends[i][k].split("/")[-1]
+                                        if np == op:
+                                            ignored[k] = True
+                                            continue
+                                    #valid change
+                                    has_changed = 1
                             if (has_changed == 1):
                                 changed.append(i)
                                 for k in result[i].keys():
-                                    if (result[i][k] != self._friends[i][k]):
-                                        print "   -> %s: %s => %s" % (k, self._friends[i][k], result[i][k])
+                                    if result[i][k] != self._friends[i][k]:
+                                        if k in ignored:
+                                            extra = " (ignored)"
+                                        else:
+                                            extra = ""
+                                        print "   -> %s: %s => %s%s" % (k, self._friends[i][k], result[i][k], extra)
                                     else:
                                         print "   -> %s: %s" % (k, result[i][k])
                                 print
