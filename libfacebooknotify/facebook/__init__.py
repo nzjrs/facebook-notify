@@ -1297,7 +1297,10 @@ class Facebook(object):
             self.added = True
 
         if params.get('expires'):
-            self.session_key_expires = int(params['expires'])
+            try:
+                self.session_key_expires = int(params['expires'])
+            except ValueError:
+                pass
 
         if 'locale' in params:
             self.locale = params['locale']
@@ -1375,8 +1378,8 @@ class Facebook(object):
             return None
 
         prefix = api_key + "_"
-       
-        params = {} 
+
+        params = {}
         vals = ''
         for k in sorted(cookies):
             if k.startswith(prefix):
@@ -1384,7 +1387,7 @@ class Facebook(object):
                 value = cookies[k]
                 params[key] = value
                 vals += '%s=%s' % (key, value)
-                
+
         hasher = hashlib.md5(vals)
 
         hasher.update(self.secret_key)
