@@ -21,7 +21,7 @@ import threading
 import tempfile
 import urllib2
 import threading
-
+import traceback
 
 import libfacebooknotify.facebook as facebook
 
@@ -88,7 +88,10 @@ class FacebookCommunicationManager(threading.Thread):
                     except urllib2.URLError, e:
                         print "comm error: %s" % str(e.reason)
                         res = {}
-                    cb(res)
+                    try:
+                        cb(res)
+                    except Exception:
+                        traceback.print_exc()
                 except IndexError:
                     break
 
@@ -109,8 +112,10 @@ class FacebookCommunicationManager(threading.Thread):
                     except urllib2.URLError, e:
                         print "error: %s" % str(e.reason)
                         pic = ""
-
-                    cb(pic, *args, **kwargs)
+                    try:
+                        cb(pic, *args, **kwargs)
+                    except Exception:
+                        traceback.print_exc()
                 except IndexError:
                     break
 
