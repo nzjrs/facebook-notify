@@ -506,34 +506,34 @@ class Gui:
                                         print "   -> %s: %s" % (k, result[i][k])
                                 print
 
-                    print "   -> %d friend changes detected" % len(changed)
+                    if len(changed):
+                        print "   -> %d friend changes detected" % len(changed)
+                        if len(changed) == 1:
+                            i = changed[0]
+                            name = result[i]["name"]
+                            pic = result[i]["pic_square"]
 
-                    if len(changed) == 1:
-                        i = changed[0]
-                        name = result[i]["name"]
-                        pic = result[i]["pic_square"]
-
-                        if  not ignored[i]["status"] and result[i]["status"]["message"] != self._friends[i]["status"]["message"]:
-                            msg = "%s updated their status\n\n<i>%s</i>" % (name, result[i]["status"]["message"])
-                        elif not ignored[i]["pic_square"] and result[i]["pic_square"] != self._friends[i]["pic_square"]:
-                            msg = "%s changed their profile picture" % name
-                        elif not ignored[i]["wall_count"] and result[i]["wall_count"] != self._friends[i]["wall_count"]:
-                            diff = int(result[i]["wall_count"]) - int(self._friends[i]["wall_count"])
-                            if diff == 1:
-                                msg = "Someone wrote on %s's wall" % name
+                            if  not ignored[i]["status"] and result[i]["status"]["message"] != self._friends[i]["status"]["message"]:
+                                msg = "%s updated their status\n\n<i>%s</i>" % (name, result[i]["status"]["message"])
+                            elif not ignored[i]["pic_square"] and result[i]["pic_square"] != self._friends[i]["pic_square"]:
+                                msg = "%s changed their profile picture" % name
+                            elif not ignored[i]["wall_count"] and result[i]["wall_count"] != self._friends[i]["wall_count"]:
+                                diff = int(result[i]["wall_count"]) - int(self._friends[i]["wall_count"])
+                                if diff == 1:
+                                    msg = "Someone wrote on %s's wall" % name
+                                else:
+                                    msg = "%s people wrote on %s wall" % (diff, name)
+                            elif not ignored[i]["notes_count"] and result[i]["notes_count"] != self._friends[i]["notes_count"]:
+                                msg = "%s posted a new note" % name
                             else:
-                                msg = "%s people wrote on %s wall" % (diff, name)
-                        elif not ignored[i]["notes_count"] and result[i]["notes_count"] != self._friends[i]["notes_count"]:
-                            msg = "%s posted a new note" % name
-                        else:
-                            msg = "%s updated his/her profile" % name
-                    elif len(changed) < 5:
-                        names = [result[i]["name"] for i in changed]
-                        msg = "%s and %s updated their profiles" % (", ".join(names[0:-1]), names[-1])
-                        pic = None
-                    elif changed:
-                        msg = "%s friends updated their profiles" % len(changed)
-                        pic = None
+                                msg = "%s updated his/her profile" % name
+                        elif len(changed) < 5:
+                            names = [result[i]["name"] for i in changed]
+                            msg = "%s and %s updated their profiles" % (", ".join(names[0:-1]), names[-1])
+                            pic = None
+                        elif changed:
+                            msg = "%s friends updated their profiles" % len(changed)
+                            pic = None
                 else:
                     msg = "You gained or lost a friend"
                     pic = None
