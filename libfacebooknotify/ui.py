@@ -514,6 +514,9 @@ class Gui:
                             name = result[i]["name"]
                             pic = result[i]["pic_square"]
 
+                            if ignored[i].has_key("status") != result[i].has_key("status"):
+                                print "-"*10,ignored[i], result[i].keys()
+
                             if not ignored[i]["status"] and result[i]["status"]["message"] != self._friends[i]["status"]["message"]:
                                 msg = "%s updated their status\n\n<i>%s</i>" % (name, result[i]["status"]["message"])
                             elif not ignored[i]["pic_square"] and result[i]["pic_square"] != self._friends[i]["pic_square"]:
