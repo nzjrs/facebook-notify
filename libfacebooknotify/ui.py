@@ -452,6 +452,7 @@ class Gui:
                 print "   -> first run"
                 self._first_friends_query = False
             else:
+                msg = ""
                 num_result = len(result)
                 num_friends = len(self._friends)
 
@@ -513,7 +514,7 @@ class Gui:
                             name = result[i]["name"]
                             pic = result[i]["pic_square"]
 
-                            if  not ignored[i]["status"] and result[i]["status"]["message"] != self._friends[i]["status"]["message"]:
+                            if not ignored[i]["status"] and result[i]["status"]["message"] != self._friends[i]["status"]["message"]:
                                 msg = "%s updated their status\n\n<i>%s</i>" % (name, result[i]["status"]["message"])
                             elif not ignored[i]["pic_square"] and result[i]["pic_square"] != self._friends[i]["pic_square"]:
                                 msg = "%s changed their profile picture" % name
@@ -538,13 +539,14 @@ class Gui:
                     msg = "You gained or lost a friend"
                     pic = None
 
-                self._send_notification(
-                        title="Friends",
-                        message=msg,
-                        pic=pic,
-                        timeout=pynotify.EXPIRES_DEFAULT,
-                        url=None
-                )
+                if msg:
+                    self._send_notification(
+                            title="Friends",
+                            message=msg,
+                            pic=pic,
+                            timeout=pynotify.EXPIRES_DEFAULT,
+                            url=None
+                    )
 
             self.__update_friend_index(result)
 
