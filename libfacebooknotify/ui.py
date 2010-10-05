@@ -400,7 +400,7 @@ class Gui:
 
     def _got_me(self, result):
         #data returned by facebook
-        #{u'status': {u'message': u'is fuck Israel.', u'status_id': u'42439154725', 
+        #{u'status': {u'message': u'happy message.', u'status_id': u'42439154725', 
         #u'time': u'1231563128'}, u'wall_count': u'144', u'uid': u'507455752', 
         #u'pic_square': u'http://profile.ak.facebook.com/v223/111/10/q507455752_2044.jpg', 
         #u'pic_small': u'http://profile.ak.facebook.com/v223/111/10/t507455752_2044.jpg', 
@@ -442,7 +442,7 @@ class Gui:
 
     def _got_friends(self, result):
         #data returned by facebook
-        #{u'status': {u'message': u'is fuck Israel.', u'status_id': u'42439154725', 
+        #{u'status': {u'message': u'happy message.', u'status_id': u'42439154725', 
         #u'time': u'1231563128'}, u'wall_count': u'144', u'uid': u'507455752', 
         #u'pic_square': u'http://profile.ak.facebook.com/v223/111/10/q507455752_2044.jpg', 
         #u'pic_small': u'http://profile.ak.facebook.com/v223/111/10/t507455752_2044.jpg', 
